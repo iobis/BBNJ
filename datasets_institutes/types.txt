@@ -1,0 +1,8 @@
+id	type
+1	Academic
+2	Research
+3	Government
+4	NGO
+5	Private non-profit
+6	Private commercial
+7	International / Intergovernmental
