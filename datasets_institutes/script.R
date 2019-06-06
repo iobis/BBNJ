@@ -3,34 +3,51 @@ library(jsonlite)
 
 data <- fromJSON("https://api.obis.org/dataset?areaid=1")$results
 
-datasetlist <- list()
+resultlist <- list()
+
 for (i in 1:nrow(data)) {
-  i_names <- data[i,]$institutes[[1]]$name
-  c_names <- data[i,]$contacts[[1]]$organization
-  all_names <- unique(na.omit(c(i_names, c_names)))
-  datasetlist[[i]] <- data.frame(id = data[i,]$id, title = data[i,]$title, records = data[i,]$records, institute = if (is.null(all_names)) NA else all_names, stringsAsFactors = FALSE)
-}
-datasets <- bind_rows(datasetlist) %>% mutate(institute = trimws(institute))
-
-# OE types
-
-types <- read.table("types.txt", sep = "\t", stringsAsFactors = FALSE, header = TRUE)
-
-oemap <- bind_rows(lapply(data$institutes, function(x) {
-  return(data.frame(oceanexpert_id = x$oceanexpert_id, name = trimws(x$name), stringsAsFactors = FALSE))
-})) %>% filter(!is.na(oceanexpert_id)) %>% distinct() %>% arrange(oceanexpert_id)
-
-oemap$typeid <- NA
-
-for (i in 1:nrow(oemap)) {
-  url <- sprintf("https://www.oceanexpert.net/api/v1/institution/%s.json", oemap$oceanexpert_id[i])
-  message(url)
-  inst <- fromJSON(url)$institute$instTypeId
-  oemap$typeid[i] <- inst
+  contacts <- data$contacts[[i]]
+  contacts$dataset_id <- data$id[i]
+  contacts$dataset_url <- data$url[i]
+  contacts$dataset_title <- data$title[i]
+  resultlist[[i]] <- contacts
 }
 
-oemap <- oemap %>% left_join(types, by = c("typeid" = "id"))
+contacts <- bind_rows(resultlist)
 
-datasets2 <- datasets %>% left_join(oemap, by = c("institute" = "name"))
+oelist <- list()
+for (oeid in unique(contacts$organization_oceanexpert_id)) {
+  if (!is.na(oeid)) {
+    url <- sprintf("https://www.oceanexpert.net/api/v1/institution/%s.json", oeid)
+    message(url)
+    type <- fromJSON(url)$institute$instTypeId
+    oelist[[oeid]] <- type
+  }
+}
 
-write.csv(datasets2, "datasets.csv", row.names = FALSE)
+contacts$organization_oceanexpert_typeid <- NA
+for (i in 1:nrow(contacts)) {
+  oeid <- contacts$organization_oceanexpert_id[i]
+  oetype <- oelist[[oeid]]
+  if (!is.null(oetype)) {
+    contacts$organization_oceanexpert_typeid[i] <- oetype
+  }
+}
+
+types <- data.frame(
+  typeid = c(1, 2, 3, 4, 5, 6, 7),
+  typename = c("Academic", "Research", "Government", "NGO", "Private non-profit", "Private commercial", "International / Intergovernmental")
+)
+
+contacts <- contacts %>%
+  left_join(types, by = c("organization_oceanexpert_typeid" = "typeid")) %>%
+  select(dataset_id, dataset_title, dataset_url, organization, organization_oceanexpert_id, organization_oceanexpert_typeid, organization_oceanexpert_typename = typename, type_display, givenname, surname)
+
+write.csv(contacts, file= "contacts.csv", row.names = FALSE)
+
+### to be matched
+
+tomatch <- contacts %>% filter(is.na(organization_oceanexpert_id) & !is.na(organization)) %>% distinct(dataset_id, organization)
+write.csv(tomatch, file= "tomatch.csv", row.names = FALSE)
+
+
