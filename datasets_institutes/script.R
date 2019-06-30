@@ -52,7 +52,7 @@ tomatch <- contacts %>% filter(is.na(organization_oceanexpert_id) & !is.na(organ
 
 write.csv(tomatch, file= "tomatch.csv", row.names = FALSE, na = "")
 
-### phylum / dlass
+### phylum / class
 
 occ <- robis::occurrence(areaid = 1, fields = c("phylum", "class", "dataset_id"))
 
