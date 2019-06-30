@@ -10,6 +10,7 @@ for (i in 1:nrow(data)) {
   contacts$dataset_id <- data$id[i]
   contacts$dataset_url <- data$url[i]
   contacts$dataset_title <- data$title[i]
+  contacts$dataset_records <- data$records[i]
   resultlist[[i]] <- contacts
 }
 
@@ -41,13 +42,14 @@ types <- data.frame(
 
 contacts <- contacts %>%
   left_join(types, by = c("organization_oceanexpert_typeid" = "typeid")) %>%
-  select(dataset_id, dataset_title, dataset_url, organization, organization_oceanexpert_id, organization_oceanexpert_typeid, organization_oceanexpert_typename = typename, type_display, givenname, surname)
+  select(dataset_id, dataset_title, dataset_url, dataset_records, organization, organization_oceanexpert_id, organization_oceanexpert_typeid, organization_oceanexpert_typename = typename, type_display, givenname, surname)
 
-write.csv(contacts, file= "contacts.csv", row.names = FALSE)
+write.csv(contacts, file= "contacts.csv", row.names = FALSE, na = "")
 
 ### to be matched
 
 tomatch <- contacts %>% filter(is.na(organization_oceanexpert_id) & !is.na(organization)) %>% distinct(dataset_id, organization)
-write.csv(tomatch, file= "tomatch.csv", row.names = FALSE)
+
+write.csv(tomatch, file= "tomatch.csv", row.names = FALSE, na = "")
 
 
